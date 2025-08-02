@@ -4,8 +4,9 @@ from multiverse.simulation import QuantumSystem, Universe, EPS
 def test_weight_conservation() -> None:
     amplitudes = {'up': 1/2**0.5 + 0j, 'down': 1/2**0.5 + 0j}
     root = Universe(system=QuantumSystem(amplitudes), weight=1.0)
-    children = root.measure('spin_z')
-    total_weight = sum(child.weight for child in children)
+    root.measure('spin_z')
+    leaves = root.children()
+    total_weight = sum(child.weight for child in leaves)
     assert abs(total_weight - root.weight) < EPS
 
 def test_repeat_measurement_blocked(caplog) -> None:
@@ -30,13 +31,14 @@ def test_deep_branching() -> None:
     for i in range(6):
         new_leaves = []
         for u in current_leaves:
-            children = u.measure(f'obs_{i}')
+            u.measure(f'obs_{i}')
+            children = u.children()
             if children:
                 new_leaves.extend(children)
             else:
                 new_leaves.append(u)
         current_leaves = new_leaves
-    # Now, all leaves are those with no children
-    leaves = [u for u in current_leaves if not u.child_universes]
+    # Now, all leaves are those with no children (no pending branches, no children)
+    leaves = [u for u in current_leaves if not u.children()]
     total_weight = sum(u.weight for u in leaves)
     assert abs(total_weight - 1.0) < EPS
