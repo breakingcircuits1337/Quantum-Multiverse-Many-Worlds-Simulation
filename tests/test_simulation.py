@@ -1,5 +1,6 @@
 import pytest
-from multiverse.simulation import QuantumSystem, Universe, EPS
+import json
+from multiverse.simulation import QuantumSystem, Universe, EPS, dump_multiverse
 
 def test_weight_conservation() -> None:
     amplitudes = {'up': 1/2**0.5 + 0j, 'down': 1/2**0.5 + 0j}
@@ -42,3 +43,26 @@ def test_deep_branching() -> None:
     leaves = [u for u in current_leaves if not u.children()]
     total_weight = sum(u.weight for u in leaves)
     assert abs(total_weight - 1.0) < EPS
+
+def test_json_dump_roundtrip(tmp_path) -> None:
+    # Build small tree, dump to json, reload, check number of nodes
+    amps = {'up': 1/2**0.5 + 0j, 'down': 1/2**0.5 + 0j}
+    root = Universe(system=QuantumSystem(amps), weight=1.0)
+    root.measure('spin_z')
+    root.children()
+    children = root.children()
+    if children:
+        c = children[0]
+        c.system = QuantumSystem({'left': 1/2**0.5 + 0j, 'right': 1/2**0.5 + 0j})
+        c.measure('spin_x')
+        c.children()
+    outfile = tmp_path / "tree.json"
+    dump_multiverse(root, str(outfile))
+    with open(outfile, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    # Check: root + all descendants, count nodes
+    def count_nodes(node):
+        return 1 + sum(count_nodes(child) for child in node["children"])
+    total_nodes = count_nodes(data)
+    # There should be root, 2 spin_z children, and for one of them, 2 spin_x children: total 1+2+2=5
+    assert total_nodes == 5

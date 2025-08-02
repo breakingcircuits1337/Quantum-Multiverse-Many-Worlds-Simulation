@@ -1,8 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional, TYPE_CHECKING
+from typing import Dict, List, Set, Optional, TYPE_CHECKING, Any
 import uuid
 import logging
+import json
 
 EPS: float = 1e-9
 
@@ -94,6 +95,32 @@ class Universe:
         # Once expanded, clear pending
         self._pending_branches = None
         return list(self.child_universes.values())
+
+    def to_dict(self, *, expand_lazy: bool = True) -> Dict[str, Any]:
+        """
+        Serializes this Universe and its children to a dict. If expand_lazy, triggers expansion.
+        """
+        if expand_lazy:
+            children = self.children()
+        else:
+            children = list(self.child_universes.values())
+        return {
+            "id": self.id,
+            "weight": self.weight,
+            "system": {k: [v.real, v.imag] for k, v in self.system.amplitudes.items()},
+            "history": list(self.history),
+            "measured_observables": list(self.measured_observables),
+            "children": [c.to_dict(expand_lazy=expand_lazy) for c in children],
+        }
+
+def dump_multiverse(universe: Universe, path: str, *, expand_lazy: bool = True) -> None:
+    """
+    Dumps the entire universe tree as JSON to the given path.
+    """
+    data = universe.to_dict(expand_lazy=expand_lazy)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
+    logger.info(f"Multiverse dumped to {path}")
 
 @dataclass(slots=True)
 class Measurement:

@@ -1,1 +1,1 @@
-from .simulation import QuantumSystem, Universe, Measurement
+from .simulation import QuantumSystem, Universe, Measurement, dump_multiverse
