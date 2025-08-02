@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional, TYPE_CHECKING, Any
+from typing import Dict, List, Set, Optional, TYPE_CHECKING, Any, Callable
 import uuid
 import logging
 import json
@@ -8,6 +8,16 @@ import json
 EPS: float = 1e-9
 
 logger = logging.getLogger(__name__)
+
+# Plugin/observer architecture
+UNIVERSE_CREATION_OBSERVERS: List[Callable[['Universe', str], None]] = []
+POST_MEASUREMENT_HOOKS: List[Callable[['Universe', str], None]] = []
+
+def register_universe_creation_observer(fn: Callable[['Universe', str], None]) -> None:
+    UNIVERSE_CREATION_OBSERVERS.append(fn)
+
+def register_post_measurement_hook(fn: Callable[['Universe', str], None]) -> None:
+    POST_MEASUREMENT_HOOKS.append(fn)
 
 @dataclass(slots=True)
 class QuantumSystem:
@@ -83,6 +93,12 @@ class Universe:
         )
         self.child_universes[state] = child
         logger.info(f"  -> Created Universe {child.id} for outcome '{state}' (w={child_weight:.5f}) [on demand]")
+        # Call observers
+        for obs in UNIVERSE_CREATION_OBSERVERS:
+            try:
+                obs(child, state)
+            except Exception as e:
+                logger.warning(f"Universe creation observer error: {e}")
         return child
 
     def children(self) -> List["Universe"]:
@@ -149,8 +165,6 @@ class Measurement:
             if prob < EPS:
                 continue
             pending[state] = prob
-            new_history_entry = f"Measured '{self.observable_name}', branched into '{state}' (Prob: {prob*100:.2f}%)"
-            # Only add history for first state; children copy parent's history anyway
         if not pending:
             logger.warning(f"No nonzero-probability branches for Universe {universe.id}")
             return []
@@ -160,5 +174,11 @@ class Measurement:
         universe.history.append(f"Measurement '{self.observable_name}' performed, branches deferred: {list(pending.keys())}")
         universe._pending_branches = pending
         logger.info(f"  -> Branches for observable '{self.observable_name}' will be created lazily for states: {list(pending.keys())}")
+        # Call post-measurement hooks
+        for hook in POST_MEASUREMENT_HOOKS:
+            try:
+                hook(universe, self.observable_name)
+            except Exception as e:
+                logger.warning(f"Post-measurement hook error: {e}")
         # Do not create any children now; only when .children() is called
         return []

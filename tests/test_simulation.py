@@ -1,6 +1,13 @@
 import pytest
 import json
-from multiverse.simulation import QuantumSystem, Universe, EPS, dump_multiverse
+from multiverse.simulation import (
+    QuantumSystem,
+    Universe,
+    EPS,
+    dump_multiverse,
+    register_universe_creation_observer,
+    register_post_measurement_hook,
+)
 
 def test_weight_conservation() -> None:
     amplitudes = {'up': 1/2**0.5 + 0j, 'down': 1/2**0.5 + 0j}
@@ -66,3 +73,27 @@ def test_json_dump_roundtrip(tmp_path) -> None:
     total_nodes = count_nodes(data)
     # There should be root, 2 spin_z children, and for one of them, 2 spin_x children: total 1+2+2=5
     assert total_nodes == 5
+
+def test_universe_creation_observer(monkeypatch):
+    # Test that observer is called for each child universe created
+    calls = []
+    def observer(u, state):
+        calls.append((u.id, state))
+    register_universe_creation_observer(observer)
+    amps = {'up': 1/2**0.5 + 0j, 'down': 1/2**0.5 + 0j}
+    root = Universe(system=QuantumSystem(amps), weight=1.0)
+    root.measure('spin_z')
+    # children() triggers observer
+    root.children()
+    assert ('up' in {s for (_, s) in calls} and 'down' in {s for (_, s) in calls})
+
+def test_post_measurement_hook():
+    # Test that post-measurement hook is called with correct universe and observable
+    calls = []
+    def hook(u, observable):
+        calls.append((u.id, observable))
+    register_post_measurement_hook(hook)
+    amps = {'up': 1/2**0.5 + 0j, 'down': 1/2**0.5 + 0j}
+    root = Universe(system=QuantumSystem(amps), weight=1.0)
+    root.measure('spin_z')
+    assert (root.id, 'spin_z') in calls
