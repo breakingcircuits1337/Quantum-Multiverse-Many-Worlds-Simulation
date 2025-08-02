@@ -10,10 +10,19 @@ def render_tree(
     style: str = "plain",
     console: Optional[Any] = None
 ) -> None:
-    """
-    Render the multiverse tree.
-    - style: 'plain' (default, iterative logging), or 'rich' (if rich installed).
-    - console: rich Console instance (optional, used only if style='rich').
+    """Render the multiverse tree in plain or rich style.
+
+    Args:
+        universe: The root Universe to render.
+        style: 'plain' (default; iterative logging) or 'rich' (use rich tree).
+        console: Optional `rich.console.Console` (for style='rich').
+
+    Raises:
+        None. Warns and falls back to plain if rich not available.
+
+    Example:
+        render_tree(universe, style="plain")
+        render_tree(universe, style="rich")
     """
     if style == "rich":
         try:
@@ -37,7 +46,15 @@ def render_tree(
     def _leaf_history(u: Universe) -> str:
         return "[dim]History: " + repr(u.history) + "[/dim]"
 
-    def build_rich_tree(u: Universe) -> Tree:
+    def build_rich_tree(u: Universe) -> "Tree":
+        """Build a rich.tree.Tree for the multiverse, expanding children lazily.
+
+        Args:
+            u: The root Universe.
+
+        Returns:
+            rich.tree.Tree instance.
+        """
         main_tree = Tree(_node_label(u))
         stack = [(u, main_tree)]
         while stack:
@@ -58,8 +75,13 @@ def render_tree(
     console.print(tree)
 
 def _render_tree_plain(universe: Universe) -> None:
-    """
-    Iterative tree rendering. Expands children lazily. (Plain style for logging)
+    """Iterative tree rendering in plain ASCII/logging style. Expands children lazily.
+
+    Args:
+        universe: The root Universe to render.
+
+    Returns:
+        None
     """
     stack = []
     # Each stack item: (universe, prefix, is_last)

@@ -6,6 +6,18 @@ from multiverse.viz import render_tree
 logger = logging.getLogger(__name__)
 
 def demo(style: str = "plain", json_path: str = None) -> None:
+    """Run the demonstration simulation and optionally export JSON.
+
+    Args:
+        style: Tree rendering style ('plain' or 'rich').
+        json_path: Path to JSON file for export (optional).
+
+    Returns:
+        None
+
+    Example:
+        demo(style="rich", json_path="output.json")
+    """
     # 1. Start with a single root universe with a superposition.
     initial_amplitudes = {'up': 1/2**0.5 + 0j, 'down': 1/2**0.5 + 0j}
     root_universe = Universe(
@@ -33,6 +45,19 @@ def demo(style: str = "plain", json_path: str = None) -> None:
         dump_multiverse(root_universe, json_path)
 
 def main() -> None:
+    """Entrypoint for the Quantum Multiverse CLI.
+
+    Parses command-line arguments and runs the demo.
+
+    Args:
+        None
+
+    Returns:
+        None
+
+    Example:
+        python cli.py --style rich --json out.json
+    """
     parser = argparse.ArgumentParser(description="Quantum Multiverse (Many-Worlds) Simulation CLI")
     parser.add_argument('--verbose', action='store_true', help='Enable verbose (DEBUG) logging')
     parser.add_argument('--style', default='plain', choices=['plain', 'rich'], help='Tree rendering style (plain/rich)')
