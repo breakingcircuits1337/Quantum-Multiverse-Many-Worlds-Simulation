@@ -4,6 +4,8 @@ from typing import Dict, List, Set, Optional, TYPE_CHECKING, Any, Callable
 import uuid
 import logging
 import json
+import random
+from typing import Tuple
 
 EPS: float = 1e-9
 
@@ -313,6 +315,52 @@ def dump_multiverse(universe: Universe, path: str, *, expand_lazy: bool = True) 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     logger.info(f"Multiverse dumped to {path}")
+
+def sample_observer(
+    universe: Universe,
+    expand_lazy: bool = True,
+    rng: Optional[random.Random] = None
+) -> Universe:
+    """Sample a leaf universe (observer) from the multiverse proportional to Born weights.
+
+    Args:
+        universe: The root Universe.
+        expand_lazy: If True, fully expand all branches.
+        rng: Optional random.Random instance to use.
+
+    Returns:
+        Universe: A sampled leaf Universe.
+
+    Raises:
+        ValueError: If no leaves found.
+    """
+    if rng is None:
+        rng = random
+    # Stack-based iterative leaf enumeration
+    stack: List[Universe] = [universe]
+    leaves: List[Tuple[Universe, float]] = []
+    while stack:
+        node = stack.pop()
+        # Expand children if needed
+        if expand_lazy:
+            children = node.children()
+        else:
+            children = list(node.child_universes.values())
+        if not children and (node._pending_branches is None):
+            leaves.append((node, node.weight))
+        else:
+            stack.extend(children)
+    if not leaves:
+        raise ValueError("No leaf universes found.")
+    total = sum(w for _, w in leaves)
+    x = rng.uniform(0, total)
+    acc = 0.0
+    for leaf, w in leaves:
+        acc += w
+        if acc >= x:
+            return leaf
+    # fallback (should not happen)
+    return leaves[-1][0]
 
 @dataclass(slots=True)
 class Measurement:

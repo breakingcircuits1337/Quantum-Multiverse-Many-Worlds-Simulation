@@ -94,6 +94,24 @@ def test_entanglement_partial_measurement():
         assert abs(abs(val) - 1.0) < EPS
         assert abs(c.weight - 0.5) < EPS
 
+def test_sampling_distribution():
+    import random
+    from multiverse.simulation import sample_observer
+    # Root with two leaves, weights 0.8 and 0.2
+    amps = {'0': (0.8) ** 0.5, '1': (0.2) ** 0.5}
+    root = Universe(system=QuantumSystem(amps), weight=1.0)
+    root.measure('qubits')
+    root.children()
+    counts = {'0': 0, '1': 0}
+    rng = random.Random(42)
+    for _ in range(10000):
+        leaf = sample_observer(root, rng=rng)
+        key = list(leaf.system.amplitudes.keys())[0]
+        counts[key] += 1
+    ratio = counts['0'] / (counts['0'] + counts['1'])
+    # Should be close to 0.8 within a few percent
+    assert abs(ratio - 0.8) < 0.02
+
 def test_universe_creation_observer(monkeypatch):
     # Test that observer is called for each child universe created
     calls = []
