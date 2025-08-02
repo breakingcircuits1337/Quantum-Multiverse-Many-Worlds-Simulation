@@ -18,29 +18,29 @@ def demo(style: str = "plain", json_path: str = None) -> None:
     Example:
         demo(style="rich", json_path="output.json")
     """
-    # 1. Start with a single root universe with a superposition.
-    initial_amplitudes = {'up': 1/2**0.5 + 0j, 'down': 1/2**0.5 + 0j}
+    import math
+    logger.info("--- Quantum Multiverse Simulation (Many-Worlds Interpretation) ---")
+    # Bell state: 2 qubits, entangled
+    amps = {
+        '00': 1 / math.sqrt(2),
+        '11': 1 / math.sqrt(2)
+    }
     root_universe = Universe(
-        system=QuantumSystem(initial_amplitudes),
+        system=QuantumSystem(amps),
         weight=1.0
     )
-    logger.info("--- Quantum Multiverse Simulation (Many-Worlds Interpretation) ---")
-    logger.info(f"Created root universe: {root_universe.id}")
-    # 2. Measure spin_z
-    root_universe.measure('spin_z')
-    # 3. Try to measure spin_z again (should print warning)
-    root_universe.measure('spin_z')
-    # 4. Measure charge in the first child
+    logger.info(f"Created root universe (Bell state): {root_universe.id}")
+    # Measure first qubit (qubits=[0])
+    root_universe.measure('qubits', qubits=[0])
+    # Expand children, each should have definite {00} or {11}
     children = root_universe.children()
-    if children:
-        u2 = children[0]
-        u2.system = QuantumSystem({'positive': 1/2**0.5 + 0j, 'negative': 1/2**0.5 + 0j})
-        u2.measure('charge')
-        u2.measure('charge')
-    # 5. Print the final state
+    logger.info("After measuring first qubit in Bell state, possible branches:")
+    for child in children:
+        logger.info(f"Branch outcome: {list(child.system.amplitudes.keys())}, weight={child.weight}")
+    # 2. Show rich tree
     logger.info("\n--- Final Multiverse State ---")
     render_tree(root_universe, style=style)
-    # 6. Optionally dump to JSON
+    # 3. Optionally dump to JSON
     if json_path:
         dump_multiverse(root_universe, json_path)
 

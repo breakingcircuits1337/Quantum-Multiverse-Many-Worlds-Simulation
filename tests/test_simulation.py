@@ -74,6 +74,26 @@ def test_json_dump_roundtrip(tmp_path) -> None:
     # There should be root, 2 spin_z children, and for one of them, 2 spin_x children: total 1+2+2=5
     assert total_nodes == 5
 
+def test_entanglement_partial_measurement():
+    import math
+    # Bell state
+    amps = {'00': 1 / math.sqrt(2), '11': 1 / math.sqrt(2)}
+    root = Universe(system=QuantumSystem(amps), weight=1.0)
+    # Measure first qubit only
+    root.measure('qubits', qubits=[0])
+    children = root.children()
+    assert len(children) == 2
+    keys = [set(c.system.amplitudes.keys()) for c in children]
+    weights = [c.weight for c in children]
+    # Should be [{'00'}, {'11'}] or vice versa
+    assert {'00'} in keys and {'11'} in keys
+    for c in children:
+        # Each child should be in a definite state
+        assert len(c.system.amplitudes) == 1
+        val = list(c.system.amplitudes.values())[0]
+        assert abs(abs(val) - 1.0) < EPS
+        assert abs(c.weight - 0.5) < EPS
+
 def test_universe_creation_observer(monkeypatch):
     # Test that observer is called for each child universe created
     calls = []
