@@ -13,6 +13,17 @@ logger = logging.getLogger(__name__)
 UNIVERSE_CREATION_OBSERVERS: List[Callable[['Universe', str], None]] = []
 POST_MEASUREMENT_HOOKS: List[Callable[['Universe', str], None]] = []
 
+# Decoherence model registration
+DECOHERENCE_MODELS: List[Callable[['Universe'], None]] = []
+
+def register_decoherence_model(fn: Callable[['Universe'], None]) -> None:
+    """Register a decoherence model to be applied to each new Universe after branching.
+
+    Args:
+        fn: Callable taking (Universe,) and applying decoherence in-place or returning a new system.
+    """
+    DECOHERENCE_MODELS.append(fn)
+
 def register_universe_creation_observer(fn: Callable[['Universe', str], None]) -> None:
     """Register a function to be called whenever a new Universe is created via branching.
 
@@ -229,6 +240,14 @@ class Universe:
             history=list(self.history),
             measured_observables=child_measured
         )
+
+        # Apply all registered decoherence models to the new Universe
+        for decoherence_fn in DECOHERENCE_MODELS:
+            try:
+                decoherence_fn(child)
+            except Exception as e:
+                logger.warning(f"Decoherence model error: {e}")
+
         self.child_universes[state] = child
         logger.info(f"  -> Created Universe {child.id} for qubits {qubits} outcome '{state}' (w={child_weight:.5f}) [on demand]")
         # Call observers
