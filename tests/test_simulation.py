@@ -135,3 +135,78 @@ def test_post_measurement_hook():
     root = Universe(system=QuantumSystem(amps), weight=1.0)
     root.measure('spin_z')
     assert (root.id, 'spin_z') in calls
+
+def test_time_travel_branch_and_overwrite():
+    from multiverse.simulation import Observer
+    # Simple chain: root -> child1 -> child2
+    amps = {'0': 1.0}
+    root = Universe(system=QuantumSystem(amps))
+    root.measure('qubits')
+    children1 = root.children()
+    child1 = children1[0]
+    child1.measure('qubits')
+    children2 = child1.children()
+    child2 = children2[0]
+    # Observer starts at child2
+    obs = Observer(id='Eve', current=child2)
+    # Branch mode: should not overwrite anything
+    obs.travel_back(2, mode='branch')
+    assert obs.current == root
+    assert not root.overwritten and not child1.overwritten and not child2.overwritten
+    # Overwrite mode: should mark descendants as overwritten
+    obs.current = child2
+    obs.travel_back(2, mode='overwrite')
+    # All descendants except root should be overwritten
+    assert not root.overwritten
+    assert child1.overwritten
+    assert child2.overwritten
+
+def test_time_travel_branch_and_overwrite():
+    from multiverse.simulation import Observer
+    # Simple chain: root -> child1 -> child2
+    amps = {'0': 1.0}
+    root = Universe(system=QuantumSystem(amps))
+    root.measure('qubits')
+    children1 = root.children()
+    child1 = children1[0]
+    child1.measure('qubits')
+    children2 = child1.children()
+    child2 = children2[0]
+    # Observer starts at child2
+    obs = Observer(id='Eve', current=child2)
+    # Branch mode: should not overwrite anything
+    obs.travel_back(2, mode='branch')
+    assert obs.current == root
+    assert not root.overwritten and not child1.overwritten and not child2.overwritten
+    # Overwrite mode: should mark descendants as overwritten
+    obs.current = child2
+    obs.travel_back(2, mode='overwrite')
+    # All descendants except root should be overwritten
+    assert not root.overwritten
+    assert child1.overwritten
+    assert child2.overwritten
+
+def test_time_travel_branch_and_overwrite():
+    from multiverse.simulation import Observer
+    # Simple chain: root -> child1 -> child2
+    amps = {'0': 1.0}
+    root = Universe(system=QuantumSystem(amps))
+    root.measure('qubits')
+    children1 = root.children()
+    child1 = children1[0]
+    child1.measure('qubits')
+    children2 = child1.children()
+    child2 = children2[0]
+    # Observer starts at child2
+    obs = Observer(id='Eve', current=child2)
+    # Branch mode: should not overwrite anything
+    obs.travel_back(2, mode='branch')
+    assert obs.current == root
+    assert not root.overwritten and not child1.overwritten and not child2.overwritten
+    # Overwrite mode: should mark descendants as overwritten
+    obs.current = child2
+    obs.travel_back(2, mode='overwrite')
+    # All descendants except root should be overwritten
+    assert not root.overwritten
+    assert child1.overwritten
+    assert child2.overwritten

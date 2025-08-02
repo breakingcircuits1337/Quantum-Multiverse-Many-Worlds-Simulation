@@ -4,6 +4,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from multiverse.simulation import TIME_JUMPS
+
 def render_tree(
     universe: Universe,
     *,
@@ -35,6 +37,9 @@ def render_tree(
 
     if style == "plain":
         _render_tree_plain(universe)
+        # Print time jumps info
+        for observer_id, from_id, to_id in TIME_JUMPS:
+            logger.info(f"[TimeJump] observer {observer_id} : {from_id}->{to_id}")
         return
 
     # --- RICH STYLE ---
@@ -73,6 +78,8 @@ def render_tree(
         console = Console()
     tree = build_rich_tree(universe)
     console.print(tree)
+    for observer_id, from_id, to_id in TIME_JUMPS:
+        logger.info(f"[TimeJump] observer {observer_id} : {from_id}->{to_id}")
 
 def _render_tree_plain(universe: Universe) -> None:
     """Iterative tree rendering in plain ASCII/logging style. Expands children lazily.

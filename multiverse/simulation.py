@@ -184,6 +184,8 @@ class Universe:
         measured_observables: Set of observables already measured.
         id: Unique universe ID.
         child_universes: Dict[str, Universe] for each outcome (created lazily).
+        parent: Parent Universe (or None for root).
+        outcome_label: The outcome that led to this universe from its parent.
         _pending_branches: Internal dict of pending branches (for lazy expansion).
 
     Example:
@@ -195,8 +197,37 @@ class Universe:
     measured_observables: Set[str] = field(default_factory=set)
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     child_universes: Dict[str, "Universe"] = field(default_factory=dict, init=False)
+    parent: Optional["Universe"] = field(default=None, repr=False)
+    outcome_label: Optional[str] = field(default=None)
     # _pending_branches: Dict[outcome, Tuple[prob, qubits]]
     _pending_branches: Optional[Dict[str, tuple[float, List[int]]]] = field(default=None, init=False, repr=False)
+    overwritten: bool = field(default=False, init=False)
+
+    @property
+    def depth(self) -> int:
+        """Returns the number of generations from the root universe."""
+        d = 0
+        node = self.parent
+        while node is not None:
+            d += 1
+            node = node.parent
+        return d
+
+    def ancestor(self, steps: int) -> "Universe":
+        """Returns the ancestor universe 'steps' generations back.
+
+        Args:
+            steps: How many steps to go back.
+
+        Returns:
+            Universe: The ancestor.
+        """
+        node = self
+        for _ in range(steps):
+            if node.parent is None:
+                raise ValueError("No ancestor that far back")
+            node = node.parent
+        return node
 
     def measure(self, observable_name: str = "qubits", qubits: Optional[List[int]] = None) -> List["Universe"]:
         """Perform a measurement (deferred branching) on this universe.
@@ -240,7 +271,9 @@ class Universe:
             system=new_system,
             weight=child_weight,
             history=list(self.history),
-            measured_observables=child_measured
+            measured_observables=child_measured,
+            parent=self,
+            outcome_label=state,
         )
 
         # Apply all registered decoherence models to the new Universe
@@ -361,6 +394,50 @@ def sample_observer(
             return leaf
     # fallback (should not happen)
     return leaves[-1][0]
+
+
+# --- TIME TRAVEL --- #
+TIME_JUMPS: List[Tuple[str, str, str]] = []  # (observer_id, from_univ_id, to_univ_id)
+
+@dataclass
+class Observer:
+    """An observer with a unique id and current universe.
+
+    Methods:
+        travel_back(steps, mode): move observer back to an ancestor.
+    """
+    id: str
+    current: Universe
+
+    def travel_back(self, steps: int, mode: str = 'branch') -> None:
+        """Travel to ancestor steps back, optionally overwriting future.
+
+        Args:
+            steps: how many generations back to go.
+            mode: 'branch' (just move observer), 'overwrite' (mark descendants as overwritten).
+
+        Returns:
+            None
+        """
+        ancestor = self.current.ancestor(steps)
+        TIME_JUMPS.append((self.id, self.current.id, ancestor.id))
+        # Add to history
+        self.current.history.append(f"[TimeJump] Observer {self.id} jumps back {steps} steps to {ancestor.id} (mode={mode})")
+        ancestor.history.append(f"[TimeJump] Observer {self.id} arrived from {self.current.id} (mode={mode})")
+        if mode == 'branch':
+            self.current = ancestor
+        elif mode == 'overwrite':
+            # Mark all descendants of ancestor as overwritten
+            def mark_overwritten(u: Universe):
+                for child in u.children():
+                    if child is not ancestor:
+                        child.overwritten = True
+                        child.history.append(f"[Overwritten] due to time travel from observer {self.id}")
+                        mark_overwritten(child)
+            mark_overwritten(ancestor)
+            self.current = ancestor
+        else:
+            raise ValueError(f"Unknown mode {mode} for time travel")
 
 @dataclass(slots=True)
 class Measurement:
