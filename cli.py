@@ -1,6 +1,9 @@
 import argparse
+import logging
 from multiverse.simulation import QuantumSystem, Universe
 from multiverse.viz import render_tree
+
+logger = logging.getLogger(__name__)
 
 def demo() -> None:
     # 1. Start with a single root universe with a superposition.
@@ -9,8 +12,8 @@ def demo() -> None:
         system=QuantumSystem(initial_amplitudes),
         weight=1.0
     )
-    print("--- Quantum Multiverse Simulation (Many-Worlds Interpretation) ---")
-    print(f"Created root universe: {root_universe.id}")
+    logger.info("--- Quantum Multiverse Simulation (Many-Worlds Interpretation) ---")
+    logger.info(f"Created root universe: {root_universe.id}")
     # 2. Measure spin_z
     root_universe.measure('spin_z')
     # 3. Try to measure spin_z again (should print warning)
@@ -22,15 +25,16 @@ def demo() -> None:
         u2.measure('charge')
         u2.measure('charge')
     # 5. Print the final state
-    print("\n--- Final Multiverse State ---")
+    logger.info("\n--- Final Multiverse State ---")
     render_tree(root_universe)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Quantum Multiverse (Many-Worlds) Simulation CLI")
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose (DEBUG) logging')
     subparsers = parser.add_subparsers(dest="command", help="Subcommands")
-    parser_demo = subparsers.add_parser("demo", help="Run the demonstration simulation")
+    subparsers.add_parser("demo", help="Run the demonstration simulation")
     args = parser.parse_args()
-    # If no subcommand, or 'demo', run demo
+    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
     if args.command is None or args.command == "demo":
         demo()
 

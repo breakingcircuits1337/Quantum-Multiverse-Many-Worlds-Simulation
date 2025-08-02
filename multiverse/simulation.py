@@ -1,28 +1,30 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set, Optional, TYPE_CHECKING
 import uuid
+import logging
 
-EPSILON: float = 1e-9
+EPS: float = 1e-9
+
+logger = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class QuantumSystem:
     amplitudes: Dict[str, complex]
 
     def __post_init__(self) -> None:
-        # Defensive copy to avoid aliasing
         self.amplitudes = dict(self.amplitudes)
         self.normalize()
 
     def normalize(self) -> None:
         norm_sq: float = sum(abs(a) ** 2 for a in self.amplitudes.values())
-        if norm_sq < EPSILON:
+        if norm_sq < EPS:
             raise ValueError("All amplitudes are zero, cannot normalize.")
         norm = norm_sq ** 0.5
         for k in self.amplitudes:
             self.amplitudes[k] /= norm
         norm_sq_after = sum(abs(a) ** 2 for a in self.amplitudes.values())
-        if abs(norm_sq_after - 1.0) > EPSILON:
+        if abs(norm_sq_after - 1.0) > EPS:
             raise ValueError("Normalization failed: Probabilities do not sum to 1.0.")
 
     @property
@@ -32,11 +34,11 @@ class QuantumSystem:
     def is_definite(self) -> Optional[str]:
         definite: Optional[str] = None
         for state, amp in self.amplitudes.items():
-            if abs(amp - 1.0) < EPSILON:
+            if abs(amp - 1.0) < EPS:
                 if definite is not None:
                     return None
                 definite = state
-            elif abs(amp) > EPSILON:
+            elif abs(amp) > EPS:
                 return None
         return definite
 
@@ -56,7 +58,6 @@ class Universe:
     child_universes: List["Universe"] = field(default_factory=list, init=False)
 
     def measure(self, observable_name: str) -> List["Universe"]:
-        """Convenience wrapper to use Measurement class."""
         return Measurement(observable_name).apply(self)
 
 @dataclass(slots=True)
@@ -64,24 +65,23 @@ class Measurement:
     observable_name: str
 
     def apply(self, universe: Universe) -> List[Universe]:
-        """Implements the full branching logic."""
         if self.observable_name in universe.measured_observables:
-            print(f"--> Universe {universe.id} already measured observable '{self.observable_name}'; no new branches created.")
+            logger.warning(f"--> Universe {universe.id} already measured observable '{self.observable_name}'; no new branches created.")
             return []
         definite = universe.system.is_definite()
         if definite is not None:
-            print(f"--> Universe {universe.id} has a definite state: '{definite}'; no new branches created.")
+            logger.info(f"--> Universe {universe.id} has a definite state: '{definite}'; no new branches created.")
             return []
-        print(f"\nPerforming measurement '{self.observable_name}' in Universe {universe.id} (w={universe.weight:.5f})...")
-        print(f"System amplitudes: {universe.system}")
-        print("Splitting universe...")
+        logger.info(f"\nPerforming measurement '{self.observable_name}' in Universe {universe.id} (w={universe.weight:.5f})...")
+        logger.info(f"System amplitudes: {universe.system}")
+        logger.info("Splitting universe...")
 
         children: List[Universe] = []
         probs = universe.system.probabilities
         for state, prob in probs.items():
-            if prob < EPSILON:
+            if prob < EPS:
                 continue
-            collapsed_amplitudes = {s: (1+0j if s == state else 0j) for s in universe.system.amplitudes}
+            collapsed_amplitudes: Dict[str, complex] = {s: (1+0j if s == state else 0j) for s in universe.system.amplitudes}
             new_system = QuantumSystem(collapsed_amplitudes)
             child_weight = universe.weight * prob
             child_measured = set(universe.measured_observables)
@@ -97,5 +97,5 @@ class Measurement:
             )
             universe.child_universes.append(child)
             children.append(child)
-            print(f"  -> Created Universe {child.id} for outcome '{state}' (w={child_weight:.5f})")
+            logger.info(f"  -> Created Universe {child.id} for outcome '{state}' (w={child_weight:.5f})")
         return children
